@@ -7,6 +7,7 @@ from source.IO.dataset_import.PickleImport import PickleImport
 from source.data_model.dataset.Dataset import Dataset
 from source.data_model.dataset.ReceptorDataset import ReceptorDataset
 from source.data_model.dataset.RepertoireDataset import RepertoireDataset
+from source.data_model.dataset.SequenceDataset import SequenceDataset
 from source.data_model.receptor.Receptor import Receptor
 from source.data_model.repertoire.Repertoire import Repertoire
 from source.simulation.SimulationState import SimulationState
@@ -36,8 +37,12 @@ class SignalImplanter(Step):
 
         if isinstance(simulation_state.dataset, RepertoireDataset):
             dataset = SignalImplanter._implant_signals_in_repertoires(simulation_state)
-        else:
+        elif isinstance(simulation_state.dataset, ReceptorDataset):
             dataset = SignalImplanter._implant_signals_in_receptors(simulation_state)
+        elif isinstance(simulation_state.dataset, SequenceDataset):
+            dataset = SignalImplanter._implant_signals_in_sequences(simulation_state)
+        else:
+            raise NotImplementedError(f"SignalImplanter: illegal dataset type: {type(simulation_state.dataset)}")
 
         return dataset
 
@@ -45,6 +50,18 @@ class SignalImplanter(Step):
     def _implant_signals_in_receptors(simulation_state: SimulationState) -> Dataset:
         processed_receptors = SignalImplanter._implant_signals(simulation_state, SignalImplanter._process_receptor)
         processed_dataset = ReceptorDataset.build(receptors=processed_receptors, file_size=simulation_state.dataset.file_size,
+                                                  name=simulation_state.dataset.name, path=simulation_state.result_path)
+
+        processed_dataset.params = {**(simulation_state.dataset.params if simulation_state.dataset.params is not None else {}),
+                                    **{signal: [True, False] for signal in simulation_state.signals}}
+
+        return processed_dataset
+
+
+    @staticmethod
+    def _implant_signals_in_sequences(simulation_state: SimulationState) -> Dataset:
+        processed_sequences = SignalImplanter._implant_signals(simulation_state, SignalImplanter._process_sequence)
+        processed_dataset = SequenceDataset.build(receptors=processed_sequences, file_size=simulation_state.dataset.file_size,
                                                   name=simulation_state.dataset.name, path=simulation_state.result_path)
 
         processed_dataset.params = {**(simulation_state.dataset.params if simulation_state.dataset.params is not None else {}),
@@ -94,6 +111,16 @@ class SignalImplanter(Step):
             for signal in simulation_state.signals:
                 new_receptor.metadata[f"signal_{signal.id}"] = False
         return new_receptor
+
+    @staticmethod
+    def _process_sequence(index, sequence, implanting, simulation_state) -> Receptor:
+        if implanting is not None:
+            new_sequence = simulation_state.signals[0].implant_in_sequence(sequence, implanting.is_noise)
+        else:
+            new_sequence = sequence.clone()
+            for signal in simulation_state.signals:
+                new_sequence.metadata[f"signal_{signal.id}"] = False
+        return new_sequence
 
     @staticmethod
     def _process_repertoire(index, repertoire, current_implanting, simulation_state) -> Repertoire:

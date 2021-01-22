@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scripts.specification_util import update_docs_per_mapping
 from source.data_model.receptor.Receptor import Receptor
+from source.data_model.receptor.receptor_sequence.ReceptorSequence import ReceptorSequence
 from source.data_model.repertoire.Repertoire import Repertoire
 from source.simulation.implants.Motif import Motif
 from source.simulation.signal_implanting_strategy.SignalImplantingStrategy import SignalImplantingStrategy
@@ -62,6 +63,12 @@ class Signal:
     def implant_in_receptor(self, receptor: Receptor, is_noise: bool) -> Receptor:
         processed_receptor = self.implanting_strategy.implant_in_receptor(receptor, self, is_noise)
         return processed_receptor
+
+    def implant_in_sequence(self, sequence: ReceptorSequence, is_noise: bool) -> Receptor:
+        raise
+        # todo: implanting_strategy.implant_in_sequence has signature sequence: ReceptorSequence, signal, motif=None, chain=None
+        processed_sequence = self.implanting_strategy.implant_in_sequence(sequence, self, is_noise)
+        return processed_sequence
 
     def __str__(self):
         return "Signal id: " + self.id + "; motifs: " + ", ".join([str(motif) for motif in self.motifs])
